@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fresh SR Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            min-height: 100vh;
+            padding: 20px;
+            color: #e6e6e6;
+        }
+
+        .container {
+            max-width: 90%;
+            margin: 0 auto;
+            background: #2d2d2d;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            border: 1px solid #4d4d4d;
+        }
+
+        .header {
+            background: #1a1a1a;
+            color: #ffd100;
+            padding: 30px;
+            text-align: center;
+            border-bottom: 2px solid #ffd100;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(255, 209, 0, 0.3);
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+            color: #e6e6e6;
+        }
+
+        .controls {
+            padding: 30px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #4d4d4d;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px 20px;
+            border: 2px solid #4d4d4d;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #1a1a1a;
+            color: #e6e6e6;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #00a8ff;
+            box-shadow: 0 0 15px rgba(0, 168, 255, 0.3);
+        }
+
+        .filter-select {
+            padding: 12px 20px;
+            border: 2px solid #4d4d4d;
+            font-size: 16px;
+            background: #1a1a1a;
+            color: #e6e6e6;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #00a8ff;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: #2d2d2d;
+            color: #ffd100;
+            padding: 15px 25px;
+            text-align: center;
+            min-width: 150px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid #4d4d4d;
+        }
+
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: bold;
+            display: block;
+            color: #00a8ff;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            color: #e6e6e6;
+        }
+
+        .table-container {
+            padding: 30px;
+            overflow-x: auto;
+            background: #2d2d2d;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1a1a1a;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .data-table th {
+            background: #2d2d2d;
+            color: #ffd100;
+            padding: 18px 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-bottom: 2px solid #4d4d4d;
+        }
+
+        .data-table td {
+            padding: 15px;
+            border-bottom: 1px solid #4d4d4d;
+            transition: background-color 0.2s ease;
+            color: #e6e6e6;
+        }
+
+        .data-table tbody tr:hover {
+            background-color: #363636;
+            transform: scale(1.001);
+        }
+
+        .data-table tbody tr:nth-child(even) {
+            background-color: #2d2d2d;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #e6e6e6;
+            font-size: 1.2rem;
+        }
+
+        .item-name {
+            font-weight: 600;
+            color: #00a8ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .item-name:hover {
+            color: #ffd100;
+            text-shadow: 0 0 8px rgba(255, 209, 0, 0.3);
+            transform: scale(1.05);
+        }
+
+        .player-name {
+            font-weight: 500;
+            color: #00a8ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .player-name:hover {
+            color: #ffd100;
+            text-shadow: 0 0 8px rgba(255, 209, 0, 0.3);
+            transform: scale(1.05);
+        }
+
+        .date-cell {
+            color: #e6e6e6;
+            font-size: 0.95rem;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            backDrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.active {
+            z-index: 1001;
+        }
+
+        .modal-content {
+            position: relative;
+            background: #2d2d2d;
+            margin: 5% auto;
+            padding: 0;
+            width: 90%;
+            max-width: 75%;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.4s ease;
+            border: 2px solid #ffd100;
+            color: #e6e6e6;
+        }
+
+        .modal-header {
+            background: #1a1a1a;
+            color: #ffd100;
+            padding: 25px 30px;
+            position: relative;
+            border-bottom: 1px solid #4d4d4d;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-header .player-icon {
+            font-size: 2rem;
+        }
+
+        .close {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #e6e6e6;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .modal-body {
+            padding: 30px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .player-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .player-stat-card {
+            background: #2d2d2d;
+            color: #ffd100;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid #4d4d4d;
+        }
+
+        .player-stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+            color: #00a8ff;
+        }
+
+        .player-stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            color: #e6e6e6;
+        }
+
+        .items-list {
+            background: #2d2d2d;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid #4d4d4d;
+        }
+
+        .items-list h3 {
+            background: #2d2d2d;
+            color: #ffd100;
+            padding: 15px 20px;
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .item-entry {
+            padding: 15px 20px;
+            border-bottom: 1px solid #4d4d4d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s ease;
+        }
+
+        .item-entry:hover {
+            background-color: #363636;
+        }
+
+        .item-entry:last-child {
+            border-bottom: none;
+        }
+
+        .item-entry-name {
+            font-weight: 600;
+            color: #00a8ff;
+            flex: 1;
+        }
+
+        .item-entry-date {
+            color: #e6e6e6;
+            font-size: 0.9rem;
+            margin-left: 15px;
+        }
+
+        .item-count-badge {
+            background: #2d2d2d;
+            color: #ffd100;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .search-container {
+                flex-direction: column;
+            }
+            
+            .stats {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .data-table {
+                font-size: 0.9rem;
+            }
+            
+            .data-table th,
+            .data-table td {
+                padding: 10px 8px;
+            }
+
+            .modal-content {
+                margin: 10% auto;
+                width: 95%;
+                max-height: 85vh;
+            }
+
+            .modal-header {
+                padding: 20px;
+            }
+
+            .modal-header h2 {
+                font-size: 1.5rem;
+            }
+
+            .modal-body {
+                padding: 20px;
+            }
+
+            .player-stats {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+
+            .player-stat-card {
+                padding: 15px;
+            }
+
+            .player-stat-number {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* New Visualization Styles */
+        .visualization-section {
+            padding: 30px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #4d4d4d;
+        }
+
+        .visualization-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .visualization-card {
+            background: #2d2d2d;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid #4d4d4d;
+        }
+
+        .visualization-card h3 {
+            color: #ffd100;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .calendar-container {
+            padding: 20px;
+            background: #2d2d2d;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            margin: 20px 0;
+            border: 1px solid #4d4d4d;
+        }
+
+        .fc {
+            max-width: 100%;
+            background: #2d2d2d;
+            color: #e6e6e6;
+        }
+
+        .fc .fc-toolbar {
+            padding: 15px;
+            margin-bottom: 0 !important;
+        }
+
+        .fc .fc-toolbar-title {
+            font-size: 1.5rem !important;
+            color: #ffd100;
+        }
+
+        .fc .fc-button {
+            background-color: #00a8ff !important;
+            border-color: #00a8ff !important;
+            padding: 8px 16px !important;
+        }
+
+        .fc .fc-button:hover {
+            background-color: #ffd100 !important;
+            border-color: #ffd100 !important;
+        }
+
+        .fc .fc-button-primary:not(:disabled).fc-button-active {
+            background-color: #ffd100 !important;
+            border-color: #ffd100 !important;
+        }
+
+        .fc .fc-daygrid-day {
+            border: 1px solid #4d4d4d;
+        }
+
+        .fc .fc-daygrid-day-number {
+            padding: 8px;
+            color: #e6e6e6;
+        }
+
+        .fc .fc-day-today {
+            background-color: rgba(0, 168, 255, 0.1) !important;
+        }
+
+        .fc .fc-event {
+            cursor: pointer;
+            padding: 2px 4px;
+            margin: 1px 0;
+            border-radius: 0;
+            background-color: #00a8ff;
+            border-color: #00a8ff;
+        }
+
+        .fc .fc-event:hover {
+            background-color: #ffd100;
+            border-color: #ffd100;
+        }
+
+        .heatmap-container {
+            height: 400px !important;
+            width: 100% !important;
+            margin-top: 20px;
+        }
+
+        .chart-container {
+            height: 400px !important;
+            width: 100% !important;
+            margin-top: 20px;
+            background: #2d2d2d;
+            padding: 20px;
+            border: 1px solid #4d4d4d;
+            border-radius: 4px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #4d4d4d;
+            padding-bottom: 10px;
+        }
+
+        .tab-button {
+            padding: 12px 24px;
+            background: #2d2d2d;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #e6e6e6;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button:hover {
+            background: #363636;
+        }
+
+        .tab-button.active {
+            background: #00a8ff;
+            color: #1a1a1a;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 80%) {
+            .visualization-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Add styles for the day modal */
+        .day-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            backDrop-filter: blur(5px);
+        }
+
+        .day-modal-content {
+            position: relative;
+            background: #2d2d2d;
+            margin: 5% auto;
+            padding: 0;
+            width: 90%;
+            max-width: 80%;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .day-modal-header {
+            background: #1a1a1a;
+            color: #ffd100;
+            padding: 25px 30px;
+            position: relative;
+            border-bottom: 1px solid #4d4d4d;
+        }
+
+        .day-modal-body {
+            padding: 20px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .day-items-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .day-item {
+            padding: 10px;
+            border-bottom: 1px solid #4d4d4d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .day-item:last-child {
+            border-bottom: none;
+        }
+
+        .day-item-name {
+            font-weight: 500;
+            color: #00a8ff;
+        }
+
+        .day-item-player {
+            color: #00a8ff;
+        }
+
+        /* Add styles for the player loot history table */
+        .player-loot-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: #2d2d2d;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid #4d4d4d;
+        }
+
+        .player-loot-table th {
+            background: #2d2d2d;
+            color: #ffd100;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .player-loot-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #4d4d4d;
+        }
+
+        .player-loot-table tr:hover {
+            background-color: #363636;
+        }
+
+        .player-loot-table .item-name {
+            color: #00a8ff;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .player-loot-table .item-name:hover {
+            color: #ffd100;
+        }
+
+        .player-loot-table .item-count {
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .player-loot-table .date-cell {
+            color: #e6e6e6;
+            font-size: 0.9rem;
+        }
+
+        .sortable {
+            cursor: pointer;
+            position: relative;
+            padding-right: 20px !important;
+        }
+
+        .sortable::after {
+            content: '↕';
+            position: absolute;
+            right: 5px;
+            color: #999;
+        }
+
+        .sortable.asc::after {
+            content: '↑';
+            color: #00a8ff;
+        }
+
+        .sortable.desc::after {
+            content: '↓';
+            color: #00a8ff;
+        }
+
+        .date-cell {
+            color: #e6e6e6;
+            font-size: 0.95rem;
+            white-space: nowrap;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 10px;
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            background: #2d2d2d;
+            border: 1px solid #4d4d4d;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #e6e6e6;
+        }
+
+        .pagination button:hover {
+            background: #363636;
+        }
+
+        .pagination button:disabled {
+            background: #2d2d2d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .pagination-info {
+            color: #e6e6e6;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>&lt;Fresh Daily&gt; SR History</h1>
+            <p></p>
+        </div>
+
+        <div class="controls">
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search by player name or item...">
+                <select id="dateFilter" class="filter-select">
+                    <option value="">All Dates</option>
+                </select>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <span class="stat-number" id="totalEntries">0</span>
+                    <span class="stat-label">Total SRs</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="uniquePlayers">0</span>
+                    <span class="stat-label">Unique Players</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="uniqueItems">0</span>
+                    <span class="stat-label">Unique Items</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="visibleEntries">0</span>
+                    <span class="stat-label">Filtered #</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Visualization Section -->
+        <div class="visualization-section">
+            <div class="tabs">
+                <button class="tab-button active" onclick="showTab('all-loot')">SR History Table</button>
+                <button class="tab-button" onclick="showTab('timeline')">Calendar</button>
+                <button class="tab-button" onclick="showTab('item-popularity')">Item Popularity</button>
+            </div>
+
+            <div id="all-loot" class="tab-content active">
+                <div class="table-container">
+                    <table id="lootTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" onclick="sortTable(this, 'date')">Date</th>
+                                <th class="sortable" onclick="sortTable(this, 'item')">Item</th>
+                                <th class="sortable" onclick="sortTable(this, 'player')">Player</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Data will be populated here -->
+                        </tbody>
+                    </table>
+                    <div id="noResults" class="no-results" style="display: none;">
+                        No results found
+                    </div>
+                    <div id="pagination" class="pagination">
+                        <button id="prevPage" onclick="changePage('prev')">Previous</button>
+                        <span id="pageInfo" class="pagination-info">Page 1 of 1</span>
+                        <button id="nextPage" onclick="changePage('next')">Next</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="timeline" class="tab-content">
+                <div class="calendar-container">
+                    <div id="calendar"></div>
+                </div>
+            </div>
+
+            <div id="item-popularity" class="tab-content">
+                <div class="chart-container">
+                    <canvas id="popularityChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Player Modal -->
+        <div id="playerModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>
+                        <span class="player-icon"></span>
+                        <span id="modalPlayerName">Player Name</span>
+                    </h2>
+                    <span class="close" onclick="closeModal('playerModal')">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="player-stats">
+                        <div class="player-stat-card">
+                            <span class="player-stat-number" id="modalTotalItems">0</span>
+                            <span class="player-stat-label">Total SRs</span>
+                        </div>
+                        <div class="player-stat-card">
+                            <span class="player-stat-number" id="modalUniqueItems">0</span>
+                            <span class="player-stat-label">Unique Items SRd</span>
+                        </div>
+                  <!--      <div class="player-stat-card">
+                            <span class="player-stat-number" id="modalFirstLoot">-</span>
+                            <span class="player-stat-label">First SR date</span>
+                        </div>
+                        <div class="player-stat-card">
+                            <span class="player-stat-number" id="modalLastLoot">-</span>
+                            <span class="player-stat-label">Last SR date</span>
+                        </div>  -->
+                    </div>
+                    
+                    <div class="items-list">
+                        <h3>📦 SR History</h3>
+                        <div id="modalItemsList">
+                            <!-- Items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Item Modal -->
+        <div id="itemModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>
+                        <span class="player-icon">⚔️</span>
+                        <span id="modalItemName">Item Name</span>
+                    </h2>
+                    <span class="close" onclick="closeModal('itemModal')">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="player-stats">
+                        <div class="player-stat-card">
+                            <span class="player-stat-number" id="modalItemSRs">0</span>
+                            <span class="player-stat-label">Total SRs</span>
+                        </div>
+                        <div class="player-stat-card">
+                            <span class="player-stat-number" id="modalItemRecipients">0</span>
+                            <span class="player-stat-label">Unique Players</span>
+                        </div>
+                <!--        <div class="player-stat-card">
+                            <span class="player-stat-number" id="modalItemFirstSR">-</span>
+                            <span class="player-stat-label">First SR date</span>
+                        </div>
+                        <div class="player-stat-card">
+                            <span class="player-stat-number" id="modalItemLastSR">-</span>
+                            <span class="player-stat-label">Last SR date</span>
+                        </div> -->
+                    </div>
+                    
+                    <div class="items-list">
+                        <!-- <h3>👥 Who SRd This Item</h3> -->
+                        <div id="modalPlayersList">
+                            <!-- Players will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Day Modal -->
+        <div id="dayModal" class="day-modal">
+            <div class="day-modal-content">
+                <div class="day-modal-header">
+                    <h2 id="dayModalTitle">SRs for Selected Day</h2>
+                    <span class="close" onclick="closeDayModal()">&times;</span>
+                </div>
+                <div class="day-modal-body">
+                    <ul id="dayItemsList" class="day-items-list">
+                        <!-- Items will be populated here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let lootData = [];
+        let filteredData = [];
+        let sortedData = [];
+        let heatmapChart = null;
+        let popularityChart = null;
+        let calendar = null;
+        let currentPage = 1;
+        const itemsPerPage = 50;
+        let searchTimeout = null;
+        let currentSort = { column: 'date', direction: 'desc' };
+
+        function loadCSVData() {
+            fetch('./250607_sr_all.csv')
+                .then(response => response.text())
+                .then(csvText => {
+                    const results = Papa.parse(csvText, {
+                        header: true,
+                        skipEmptyLines: true
+                    });
+                    lootData = results.data;
+                    filteredData = [...lootData];
+                    initializeVisualizations();
+                    updateTable();
+                    updateStats();
+                    populateDateFilter();
+                    
+                    // Add event listeners after data is loaded
+                    document.getElementById('searchInput').addEventListener('input', handleSearch);
+                    document.getElementById('dateFilter').addEventListener('change', filterData);
+                })
+                .catch(error => {
+                    console.error('Error loading CSV file:', error);
+                    alert('Error loading loot data. Please check if the CSV file exists.');
+                });
+        }
+
+        function handleSearch(event) {
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            searchTimeout = setTimeout(() => {
+                filterData();
+            }, 50);
+        }
+
+        function updateTable() {
+            const tableBody = document.getElementById('tableBody');
+            const noResults = document.getElementById('noResults');
+            const table = document.getElementById('lootTable');
+            const pagination = document.getElementById('pagination');
+            
+            if (filteredData.length === 0) {
+                table.style.display = 'none';
+                noResults.style.display = 'block';
+                pagination.style.display = 'none';
+                return;
+            }
+
+            table.style.display = 'table';
+            noResults.style.display = 'none';
+            pagination.style.display = 'flex';
+            
+            // Use sortedData if it exists, otherwise use filteredData
+            const dataToUse = sortedData.length > 0 ? sortedData : filteredData;
+            
+            // Calculate pagination
+            const totalPages = Math.ceil(dataToUse.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageData = dataToUse.slice(startIndex, endIndex);
+            
+            tableBody.innerHTML = '';
+            
+            pageData.forEach(row => {
+                const tr = document.createElement('tr');
+//                console.log(row.Item)
+                tr.innerHTML = `
+                    <td class="date-cell">${new Date(row.Date).toLocaleDateString()}</td>
+                    <td><span class="item-name" onclick="showItemModal('${row.Item.replace(/'/g, "\\'")}')">${row.Item}</span></td>
+                    <td><span class="player-name" onclick="showPlayerModal('${row.Name.replace(/'/g, "\\'")}')">${row.Name}</span></td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            // Update pagination info
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage === totalPages;
+        }
+
+        function changePage(direction) {
+            const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+            if (direction === 'prev' && currentPage > 1) {
+                currentPage--;
+            } else if (direction === 'next' && currentPage < totalPages) {
+                currentPage++;
+            }
+            updateTable();
+        }
+
+        function filterData() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const selectedDate = document.getElementById('dateFilter').value;
+            
+            filteredData = lootData.filter(row => {
+                const matchesSearch = !searchTerm || 
+                    (row.Name && row.Name.toLowerCase().includes(searchTerm)) || 
+                    (row.Item && row.Item.toLowerCase().includes(searchTerm));
+                
+                const matchesDate = !selectedDate || row.Date === selectedDate;
+                
+                return matchesSearch && matchesDate;
+            });
+            
+            // Clear sorted data when filtering
+            sortedData = [];
+            
+            // Reset to first page when filtering
+            currentPage = 1;
+            updateTable();
+            updateStats();
+        }
+
+        function updateStats() {
+            const uniquePlayers = new Set(filteredData.map(row => row.Name)).size;
+            const uniqueItems = new Set(filteredData.map(row => row.Item)).size;
+            
+            document.getElementById('totalEntries').textContent = lootData.length;
+            document.getElementById('uniquePlayers').textContent = uniquePlayers;
+            document.getElementById('uniqueItems').textContent = uniqueItems;
+            document.getElementById('visibleEntries').textContent = filteredData.length;
+        }
+
+        function parseEventsForCalendar() {
+            const dateGroups = {};
+            lootData.forEach(row => {
+                if (row.Date) {
+                    if (!dateGroups[row.Date]) {
+                        dateGroups[row.Date] = [];
+                    }
+                    dateGroups[row.Date].push(row);
+                }
+            });
+
+            return Object.entries(dateGroups).map(([date, items]) => ({
+                title: `${items.length} SRs`,
+                date: date,
+                count: items.length,
+                backgroundColor: `hsl(50%, 50%, 80%)`
+            }));
+        }
+
+        function getPlayerActivityData() {
+            const playerCounts = {};
+            lootData.forEach(row => {
+                if (row.Name) {
+                    playerCounts[row.Name] = (playerCounts[row.Name] || 0) + 1;
+                }
+            });
+            return playerCounts;
+        }
+
+        function getItemPopularityData() {
+            const itemCounts = {};
+            lootData.forEach(row => {
+                if (row.Item) {
+                    itemCounts[row.Item] = (itemCounts[row.Item] || 0) + 1;
+                }
+            });
+            return Object.fromEntries(
+                Object.entries(itemCounts)
+                    .sort(([,a], [,b]) => b - a)
+            );
+        }
+
+        function getTrendData() {
+            const dateCounts = {};
+            lootData.forEach(row => {
+                if (row.Date) {
+                    dateCounts[row.Date] = (dateCounts[row.Date] || 0) + 1;
+                }
+            });
+            return dateCounts;
+        }
+
+        function populateDateFilter() {
+            const dateFilter = document.getElementById('dateFilter');
+            const uniqueDates = [...new Set(lootData.map(row => row.Date))].sort().reverse();
+            
+            uniqueDates.forEach(date => {
+                const option = document.createElement('option');
+                option.value = date;
+                option.textContent = new Date(date).toLocaleDateString();
+                dateFilter.appendChild(option);
+            });
+        }
+
+        // Initialize the app when the page loads
+        window.addEventListener('load', function() {
+            loadCSVData();
+        });
+
+        // Initialize modals when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize item modal
+            const itemModal = document.getElementById('itemModal');
+            if (itemModal) {
+                itemModal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        closeModal('itemModal');
+                    }
+                });
+            }
+
+            // Initialize player modal
+            const playerModal = document.getElementById('playerModal');
+            if (playerModal) {
+                playerModal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        closeModal('playerModal');
+                    }
+                });
+            }
+
+            // Load data after initialization
+            loadCSVData();
+        });
+
+        function showPlayerModal(playerName) {
+            // Close any open modals first
+            closeAllModals();
+            
+            const modal = document.getElementById('playerModal');
+            const playerData = lootData.filter(row => row.Name === playerName);
+            
+            if (playerData.length === 0) return;
+            
+            // Calculate player statistics
+            const uniqueItems = new Set(playerData.map(row => row.Item));
+            const dates = playerData.map(row => new Date(row.Date)).sort();
+            const firstLoot = dates[0];
+            const lastLoot = dates[dates.length - 1];
+            
+            // Update modal content
+            document.getElementById('modalPlayerName').textContent = playerName;
+            document.getElementById('modalTotalItems').textContent = playerData.length;
+            document.getElementById('modalUniqueItems').textContent = uniqueItems.size;
+         //   document.getElementById('modalFirstLoot').textContent = firstLoot.toLocaleDateString();
+         //   document.getElementById('modalLastLoot').textContent = lastLoot.toLocaleDateString();
+
+            // Create items list
+            const itemsList = document.getElementById('modalItemsList');
+            const itemStats = {};
+            
+            // Calculate stats for each item
+            playerData.forEach(row => {
+                if (!itemStats[row.Item]) {
+                    itemStats[row.Item] = {
+                        count: 0,
+                        firstDate: row.Date,
+                        lastDate: row.Date
+                    };
+                }
+                itemStats[row.Item].count++;
+                if (row.Date < itemStats[row.Item].firstDate) {
+                    itemStats[row.Item].firstDate = row.Date;
+                }
+                if (row.Date > itemStats[row.Item].lastDate) {
+                    itemStats[row.Item].lastDate = row.Date;
+                }
+            });
+
+            // Sort items by date (oldest first)
+            const sortedItems = Object.entries(itemStats)
+                .sort(([,a], [,b]) => new Date(a.firstDate) - new Date(b.firstDate));
+
+            // Create table
+            itemsList.innerHTML = `
+                <table class="player-loot-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" onclick="sortTable(this, 'item')">Item</th>
+                            <th class="sortable" onclick="sortTable(this, 'count')"># of SRs</th>
+                            <th class="sortable" onclick="sortTable(this, 'firstDate')">First SR date</th>
+                            <th class="sortable" onclick="sortTable(this, 'lastDate')">Last SR date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sortedItems.map(([item, stats]) => `
+                            <tr>
+                                <td><span class="item-name" onclick="showItemModal('${item.replace(/'/g, "\\'")}')">${item}</span></td>
+                                <td class="item-count">${stats.count}</td>
+                                <td class="date-cell">${new Date(stats.firstDate).toLocaleDateString()}</td>
+                                <td class="date-cell">${new Date(stats.lastDate).toLocaleDateString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            modal.style.display = 'block';
+            modal.classList.add('active');
+        }
+
+        function showItemModal(itemName) {
+            // Close any open modals first
+            closeAllModals();
+            
+            const modal = document.getElementById('itemModal');
+            const itemData = lootData.filter(row => row.Item === itemName);
+            
+            if (itemData.length === 0) return;
+            
+            // Calculate item statistics
+            const uniquePlayers = new Set(itemData.map(row => row.Name));
+            const dates = itemData.map(row => new Date(row.Date)).sort();
+            const firstSR = dates[0];
+            const lastSR = dates[dates.length - 1];
+            
+            // Update modal content
+            document.getElementById('modalItemName').textContent = itemName;
+            document.getElementById('modalItemSRs').textContent = itemData.length;
+            document.getElementById('modalItemRecipients').textContent = uniquePlayers.size;
+        //    document.getElementById('modalItemFirstSR').textContent = firstSR.toLocaleDateString();
+        //    document.getElementById('modalItemLastSR').textContent = lastSR.toLocaleDateString();
+
+            // Calculate stats for each player
+            const playerStats = {};
+            itemData.forEach(row => {
+                if (!playerStats[row.Name]) {
+                    playerStats[row.Name] = {
+                        count: 0,
+                        firstDate: row.Date,
+                        lastDate: row.Date
+                    };
+                }
+                playerStats[row.Name].count++;
+                if (row.Date < playerStats[row.Name].firstDate) {
+                    playerStats[row.Name].firstDate = row.Date;
+                }
+                if (row.Date > playerStats[row.Name].lastDate) {
+                    playerStats[row.Name].lastDate = row.Date;
+                }
+            });
+
+            // Sort players by date (oldest first)
+            const sortedPlayers = Object.entries(playerStats)
+                .sort(([,a], [,b]) => new Date(a.firstDate) - new Date(b.firstDate));
+
+            // Create table
+            const playersList = document.getElementById('modalPlayersList');
+            playersList.innerHTML = `
+                <table class="player-loot-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" onclick="sortTable(this, 'player')">Player</th>
+                            <th class="sortable" onclick="sortTable(this, 'count')"># of SRs</th>
+                            <th class="sortable" onclick="sortTable(this, 'firstDate')">First SR date</th>
+                            <th class="sortable" onclick="sortTable(this, 'lastDate')">Last SR date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sortedPlayers.map(([player, stats]) => `
+                            <tr>
+                                <td><span class="player-name" onclick="showPlayerModal('${player.replace(/'/g, "\\'")}')">${player}</span></td>
+                                <td class="item-count">${stats.count}</td>
+                                <td class="date-cell">${new Date(stats.firstDate).toLocaleDateString()}</td>
+                                <td class="date-cell">${new Date(stats.lastDate).toLocaleDateString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            modal.style.display = 'block';
+            modal.classList.add('active');
+        }
+        
+        function closeAllModals() {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.style.display = 'none';
+                modal.classList.remove('active');
+            });
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+        }
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                if (document.getElementById('playerModal').style.display === 'block') {
+                    closeModal('playerModal');
+                }
+                if (document.getElementById('itemModal').style.display === 'block') {
+                    closeModal('itemModal');
+                }
+            }
+        });
+
+        // New visualization functions
+        function initializeVisualizations() {
+            initializeCalendar();
+            initializePopularityChart();
+        }
+
+        function initializeCalendar() {
+            const calendarEl = document.getElementById('calendar');
+            
+            // Destroy existing calendar if it exists
+            if (calendar) {
+                calendar.destroy();
+            }
+            
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                events: parseEventsForCalendar(),
+                eventClick: function(info) {
+                    showDayModal(info.event.start);
+                },
+                eventDidMount: function(info) {
+                    info.el.title = `${info.event.extendedProps.count} items SRd`;
+                },
+                height: 'auto',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: ''
+            //        right: 'dayGridMonth'
+                }
+            });
+            calendar.render();
+        }
+
+        function initializePopularityChart() {
+            const ctx = document.getElementById('popularityChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (popularityChart) {
+                popularityChart.destroy();
+            }
+            
+            const itemData = getItemPopularityData();
+            const top25Items = Object.entries(itemData).slice(0, 25);
+            
+            popularityChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: top25Items.map(([item]) => item),
+                    datasets: [{
+                        label: 'Number of SRs',
+                        data: top25Items.map(([,count]) => count),
+                        backgroundColor: 'rgba(0, 168, 255, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements && elements.length > 0) {
+                            const index = elements[0].index;
+                            const itemName = top25Items[index][0];
+                            showItemModal(itemName);
+                        }
+                    },
+                    onHover: (event, elements) => {
+                        event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                    }
+                }
+            });
+        }
+
+        function showDayModal(date) {
+            const modal = document.getElementById('dayModal');
+            const itemsList = document.getElementById('dayItemsList');
+            const title = document.getElementById('dayModalTitle');
+            
+            const dateStr = date.toISOString().split('T')[0];
+            const dayItems = lootData.filter(row => row.Date === dateStr);
+            
+            title.textContent = `SRs for ${new Date(dateStr).toLocaleDateString()}`;
+            itemsList.innerHTML = '';
+            
+            dayItems.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'day-item';
+                li.innerHTML = `
+                    <span class="day-item-name" onclick="showItemModal('${item.Item}')">${item.Item}</span>
+                    <span class="day-item-player" onclick="showPlayerModal('${item.Name}')">${item.Name}</span>
+                `;
+                itemsList.appendChild(li);
+            });
+            
+            modal.style.display = 'block';
+        }
+
+        function closeDayModal() {
+            document.getElementById('dayModal').style.display = 'none';
+        }
+
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Update active tab button
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            document.querySelector(`.tab-button[onclick="showTab('${tabName}')"]`).classList.add('active');
+
+            // Reinitialize calendar if timeline tab is selected
+            if (tabName === 'timeline') {
+                setTimeout(() => {
+                    initializeCalendar();
+                }, 100);
+            }
+        }
+
+
+        function sortTable(header, column) {
+            const table = header.closest('table');
+            const tbody = table.querySelector('tbody');
+            const currentDirection = header.classList.contains('asc') ? 'desc' : 'asc';
+            
+            // Remove sort classes from all headers
+            table.querySelectorAll('th').forEach(th => {
+                th.classList.remove('asc', 'desc');
+            });
+            
+            // Add sort class to clicked header
+            header.classList.add(currentDirection);
+
+            // If this is the main table, sort the entire dataset
+            if (table.id === 'lootTable') {
+                currentSort.column = column;
+                currentSort.direction = currentDirection;
+                
+                // Sort the entire filtered dataset
+                sortedData = [...filteredData].sort((a, b) => {
+                    let aValue, bValue;
+                    
+                    switch(column) {
+                        case 'date':
+                            aValue = new Date(a.Date);
+                            bValue = new Date(b.Date);
+                            break;
+                        case 'item':
+                            aValue = a.Item.toLowerCase();
+                            bValue = b.Item.toLowerCase();
+                            break;
+                        case 'player':
+                            aValue = a.Name.toLowerCase();
+                            bValue = b.Name.toLowerCase();
+                            break;
+                        default:
+                            aValue = a[column];
+                            bValue = b[column];
+                    }
+                    
+                    if (currentDirection === 'asc') {
+                        return aValue > bValue ? 1 : -1;
+                    } else {
+                        return aValue < bValue ? 1 : -1;
+                    }
+                });
+                
+                // Reset to first page when sorting
+                currentPage = 1;
+                updateTable();
+            } else {
+                // For modal tables, sort just the visible rows
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                rows.sort((a, b) => {
+                    let aValue = a.querySelector(`td:nth-child(${Array.from(header.parentNode.children).indexOf(header) + 1})`).textContent;
+                    let bValue = b.querySelector(`td:nth-child(${Array.from(header.parentNode.children).indexOf(header) + 1})`).textContent;
+                    
+                    // Handle date columns
+                    if (column === 'firstDate' || column === 'lastDate') {
+                        aValue = new Date(aValue);
+                        bValue = new Date(bValue);
+                    }
+                    // Handle numeric columns
+                    else if (column === 'count') {
+                        aValue = parseInt(aValue);
+                        bValue = parseInt(bValue);
+                    }
+                    
+                    if (currentDirection === 'asc') {
+                        return aValue > bValue ? 1 : -1;
+                    } else {
+                        return aValue < bValue ? 1 : -1;
+                    }
+                });
+                
+                // Reorder the rows
+                rows.forEach(row => tbody.appendChild(row));
+            }
+        }
+
+        function getColumnIndex(header) {
+            return Array.from(header.parentElement.children).indexOf(header) + 1;
+        }
+    </script>
+</body>
+</html>
